@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bag — Dynamic Store</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-body">
+
+<a href="#main" class="skip-link">Skip to content</a>
+
+<div id="pageLoader" class="page-loader" aria-hidden="true">
+  <div class="page-loader__logo">Dynamic<span>.</span></div>
+</div>
+
+<!-- NAV -->
+<nav class="nav" aria-label="Main navigation">
+  <div class="nav__inner">
+    <button class="nav__hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="navMenu">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="index.html" class="nav__logo">Dynamic<span>.</span></a>
+    <div class="nav__actions">
+      <a href="cart.html" class="nav__btn" aria-label="Shopping bag">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <span class="nav__cart-count" aria-live="polite" style="display:none">0</span>
+      </a>
+    </div>
+  </div>
+  <div class="nav__menu" id="navMenu" aria-hidden="true">
+    <a href="index.html" class="nav__menu-link">Shop</a>
+    <a href="cart.html"  class="nav__menu-link">Bag</a>
+    <a href="checkout.html" class="nav__menu-link">Checkout</a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main id="main" class="cart-page">
+  <h1 class="cart-page__title">Your Bag</h1>
+  <p class="cart-page__subtitle">Review your items before checkout.</p>
+
+  <div class="cart-layout">
+
+    <!-- Items -->
+    <section aria-label="Cart items">
+      <!-- Empty state -->
+      <div id="cartEmpty" class="cart-empty" style="display:none">
+        <svg class="cart-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <h2 class="cart-empty__title">Your bag is empty</h2>
+        <p class="cart-empty__text">Looks like you haven't added anything yet.</p>
+        <a href="index.html" class="btn btn--primary">Browse Collection</a>
+      </div>
+
+      <div id="cartItems"></div>
+    </section>
+
+    <!-- Summary -->
+    <aside id="cartSummary" class="cart-summary" aria-label="Order summary" style="display:none">
+      <h2 class="cart-summary__title">Order Summary</h2>
+
+      <div id="summaryItems"></div>
+
+      <div class="cart-summary__total">
+        <span class="cart-summary__total-label">Total</span>
+        <span class="cart-summary__total-val" id="summaryTotal">Rs. 0</span>
+      </div>
+
+      <a href="checkout.html" id="checkoutBtn" class="btn btn--primary btn--full btn--lg">
+        Proceed to Checkout
+      </a>
+
+      <p class="cart-summary__note">
+        Free delivery on orders over Rs. 5,000.<br>
+        Payment confirmed via WhatsApp.
+      </p>
+
+      <a href="index.html" style="display:block;text-align:center;font-size:0.75rem;color:rgba(255,255,255,0.4);margin-top:16px;letter-spacing:0.08em;text-transform:uppercase;transition:color 0.2s" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
+        Continue Shopping
+      </a>
+    </aside>
+
+  </div>
+</main>
+
+<!-- Footer -->
+<footer class="footer" aria-label="Site footer">
+  <div class="footer__inner">
+    <div class="footer__bottom">
+      <span>© 2025 Dynamic Store</span>
+      <a href="index.html" class="footer__link" style="color:rgba(255,255,255,0.5)">Back to Shop</a>
+    </div>
+  </div>
+</footer>
+
+<div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+<script src="js/data.js"></script>
+<script src="js/cart.js"></script>
+</body>
+</html>

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product — Dynamic Store</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-body">
+
+<a href="#main" class="skip-link">Skip to content</a>
+
+<div id="pageLoader" class="page-loader" aria-hidden="true">
+  <div class="page-loader__logo">Dynamic<span>.</span></div>
+</div>
+
+<!-- NAV -->
+<nav class="nav" aria-label="Main navigation">
+  <div class="nav__inner">
+    <button class="nav__hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="navMenu">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="index.html" class="nav__logo">Dynamic<span>.</span></a>
+    <div class="nav__actions">
+      <a href="cart.html" class="nav__btn" aria-label="Shopping bag">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <span class="nav__cart-count" aria-live="polite" style="display:none">0</span>
+      </a>
+    </div>
+  </div>
+  <div class="nav__menu" id="navMenu" aria-hidden="true">
+    <a href="index.html" class="nav__menu-link">Shop</a>
+    <a href="cart.html"  class="nav__menu-link">Bag</a>
+    <a href="checkout.html" class="nav__menu-link">Checkout</a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main id="main" class="pdp" id="pdpWrap">
+  <!-- Loading state -->
+  <div style="grid-column:1/-1;padding:120px 20px;text-align:center" id="loadingState">
+    <div style="font-family:var(--font-display);font-size:1.2rem;color:var(--gray);letter-spacing:0.1em;animation:pulse 1.4s ease-in-out infinite">
+      Loading…
+    </div>
+  </div>
+</main>
+
+<!-- Sticky add to bag (mobile) -->
+<div class="pdp__sticky-bar" id="stickyBar" aria-label="Add to bag">
+  <div class="pdp__sticky-price" id="stickyPrice">Rs. —</div>
+  <button class="btn btn--primary" id="stickyAddBtn" aria-label="Add to bag">Add to Bag</button>
+</div>
+
+<div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+<script src="js/data.js"></script>
+<script>
+const productId = new URLSearchParams(location.search).get('id');
+let product = null;
+let selectedColor = null;
+let selectedSize  = null;
+
+async function init() {
+  if (!productId) { showError('No product specified.'); return; }
+  try {
+    product = await getProduct(productId);
+    document.title = `${product.name} — Dynamic Store`;
+    renderPDP();
+  } catch(e) {
+    showError(e.message);
+  }
+}
+
+function showError(msg) {
+  document.getElementById('main').innerHTML = `
+    <div class="page-error" style="grid-column:1/-1">
+      <div class="page-error__code">404</div>
+      <p class="page-error__msg">${msg}</p>
+      <a href="index.html" class="btn btn--dark">Back to Shop</a>
+    </div>`;
+}
+
+function renderPDP() {
+  const variants = safe(product.variants);
+  const sizes    = safe(product.sizes);
+  const pieces   = safe(product.pieces);
+
+  selectedColor = variants[0]?.color || null;
+  selectedSize  = sizes[0]?.name || null;
+
+  const firstImg = variants[0]?.image_url || '';
+  const badgeLabel = product.badge || '';
+
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <!-- Gallery -->
+    <div class="pdp__gallery" id="gallery">
+      <div class="pdp__main-img" id="mainImgWrap">
+        <img id="mainImg" src="${firstImg}" alt="${product.name}" loading="eager">
+      </div>
+    </div>
+
+    <!-- Info panel -->
+    <div class="pdp__info" id="infoPanel">
+
+      <!-- Breadcrumb -->
+      <nav aria-label="Breadcrumb" class="pdp__breadcrumb">
+        <a href="index.html">Shop</a>
+        <span class="pdp__breadcrumb-sep" aria-hidden="true">›</span>
+        <span>${product.piece_type || product.category || 'Product'}</span>
+      </nav>
+
+      <!-- Header -->
+      <div class="pdp__header">
+        ${badgeLabel ? `<span class="pdp__badge">${badgeLabel}</span>` : ''}
+        <h1 class="pdp__title">${product.name}</h1>
+        <p class="pdp__category">${product.piece_type || product.category || ''}</p>
+      </div>
+
+      <!-- Price -->
+      <div class="pdp__price-block">
+        <span class="pdp__price" id="pdpPrice">${fmt(calcPrice(product, selectedColor, selectedSize))}</span>
+        <span class="pdp__price-label">PKR</span>
+      </div>
+
+      ${product.low_stock ? `<p class="pdp__low-stock">⚑ Low stock — order soon</p>` : ''}
+
+      <div class="pdp__divider"></div>
+
+      <!-- Color -->
+      ${variants.length ? `
+      <div>
+        <div class="pdp__label">
+          Colour
+          <span class="pdp__label-val" id="colorLabel">${selectedColor || ''}</span>
+        </div>
+        <div class="color-swatches" id="colorSwatches" role="group" aria-label="Select colour">
+          ${variants.map(v => `
+            <button class="color-swatch ${v.color === selectedColor ? 'selected' : ''}"
+              style="background:${colorToHex(v.color)}"
+              data-color="${v.color}"
+              data-img="${v.image_url || ''}"
+              aria-label="${v.color}"
+              aria-pressed="${v.color === selectedColor}"
+              title="${v.color}">
+            </button>
+          `).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Size -->
+      ${sizes.length ? `
+      <div>
+        <div class="pdp__label">
+          Size
+          <span class="pdp__label-val" id="sizeLabel">${selectedSize || ''}</span>
+        </div>
+        <div class="size-options" id="sizeOptions" role="group" aria-label="Select size">
+          ${sizes.map(s => `
+            <button class="size-btn ${s.name === selectedSize ? 'selected' : ''}"
+              data-size="${s.name}"
+              aria-pressed="${s.name === selectedSize}">
+              ${s.name}
+            </button>
+          `).join('')}
+        </div>
+      </div>` : ''}
+
+      <div class="pdp__divider"></div>
+
+      <!-- Add to bag -->
+      <div class="pdp__cta">
+        <div class="pdp__cta-error" id="ctaError">Please select a colour and size before adding to your bag.</div>
+        <button class="btn btn--primary btn--full btn--lg" id="addToBagBtn">
+          Add to Bag
+        </button>
+        <a href="cart.html" class="btn btn--ghost btn--full">View Bag</a>
+      </div>
+
+      <!-- Pieces accordion -->
+      ${pieces.length ? `
+      <div class="pdp__accordion" id="accordion">
+        <div class="accordion-item">
+          <button class="accordion-btn" aria-expanded="false" aria-controls="acPieces">
+            Piece Details
+            <svg class="accordion-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+          <div class="accordion-body" id="acPieces">
+            <div class="accordion-content">
+              ${pieces.map((p, i) => `
+                <div class="piece-detail">
+                  <div class="piece-detail__label">Piece ${i + 1}${p.label ? ` — ${p.label}` : ''}</div>
+                  <div class="piece-detail__row">
+                    ${p.fit      ? `<span class="piece-detail__key">Fit</span><span class="piece-detail__val">${p.fit}</span>` : ''}
+                    ${p.fabric   ? `<span class="piece-detail__key">Fabric</span><span class="piece-detail__val">${p.fabric}</span>` : ''}
+                    ${p.material ? `<span class="piece-detail__key">Material</span><span class="piece-detail__val">${p.material}</span>` : ''}
+                  </div>
+                  ${p.desc ? `<p class="piece-detail__desc">${p.desc}</p>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <button class="accordion-btn" aria-expanded="false" aria-controls="acCare">
+            Care & Delivery
+            <svg class="accordion-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+          <div class="accordion-body" id="acCare">
+            <div class="accordion-content">
+              <div class="piece-detail">
+                <div class="piece-detail__row">
+                  <span class="piece-detail__key">Wash</span><span class="piece-detail__val">Hand wash cold</span>
+                  <span class="piece-detail__key">Iron</span><span class="piece-detail__val">Low heat</span>
+                  <span class="piece-detail__key">Delivery</span><span class="piece-detail__val">3–5 business days</span>
+                  <span class="piece-detail__key">Payment</span><span class="piece-detail__val">Via WhatsApp confirmation</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>` : ''}
+
+    </div><!-- /pdp__info -->
+  `;
+
+  bindInteractions();
+  updateStickyPrice();
+}
+
+function bindInteractions() {
+  // Color swatches
+  document.querySelectorAll('.color-swatch').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedColor = btn.dataset.color;
+      document.querySelectorAll('.color-swatch').forEach(b => {
+        b.classList.toggle('selected', b.dataset.color === selectedColor);
+        b.setAttribute('aria-pressed', b.dataset.color === selectedColor);
+      });
+      document.getElementById('colorLabel').textContent = selectedColor;
+
+      // Swap image
+      if (btn.dataset.img) {
+        const img = document.getElementById('mainImg');
+        img.classList.add('fade');
+        setTimeout(() => {
+          img.src = btn.dataset.img;
+          img.classList.remove('fade');
+        }, 160);
+      }
+      updatePrice();
+    });
+  });
+
+  // Size buttons
+  document.querySelectorAll('.size-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedSize = btn.dataset.size;
+      document.querySelectorAll('.size-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.size === selectedSize);
+        b.setAttribute('aria-pressed', b.dataset.size === selectedSize);
+      });
+      document.getElementById('sizeLabel').textContent = selectedSize;
+      updatePrice();
+    });
+  });
+
+  // Add to bag
+  const addBtn    = document.getElementById('addToBagBtn');
+  const stickyBtn = document.getElementById('stickyAddBtn');
+  [addBtn, stickyBtn].forEach(btn => {
+    if (!btn) return;
+    btn.addEventListener('click', handleAddToBag);
+  });
+
+  // Accordion
+  document.querySelectorAll('.accordion-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.accordion-item');
+      const open = item.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open);
+    });
+  });
+}
+
+function handleAddToBag() {
+  const variants = safe(product.variants);
+  const sizes    = safe(product.sizes);
+  const needsColor = variants.length > 0 && !selectedColor;
+  const needsSize  = sizes.length   > 0 && !selectedSize;
+
+  if (needsColor || needsSize) {
+    const errEl = document.getElementById('ctaError');
+    errEl.classList.add('visible');
+    errEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return;
+  }
+
+  document.getElementById('ctaError')?.classList.remove('visible');
+  addToCart(product, selectedColor, selectedSize);
+  toast(`${product.name} added to bag`, 'success');
+}
+
+function updatePrice() {
+  const price = calcPrice(product, selectedColor, selectedSize);
+  const el = document.getElementById('pdpPrice');
+  if (el) el.textContent = fmt(price);
+  updateStickyPrice();
+}
+
+function updateStickyPrice() {
+  const price = calcPrice(product, selectedColor, selectedSize);
+  const el = document.getElementById('stickyPrice');
+  if (el) el.textContent = fmt(price);
+}
+
+// Map common color names to hex for swatches
+function colorToHex(name) {
+  const map = {
+    'black': '#1a1a1a', 'white': '#f5f5f5', 'ivory': '#fffff0',
+    'cream': '#fffdd0', 'beige': '#f5f0e8', 'dusty rose': '#dcb4b4',
+    'blush': '#f4c2c2', 'pink': '#ffb6c1', 'hot pink': '#ff69b4',
+    'red': '#c0392b', 'maroon': '#800000', 'burgundy': '#800020',
+    'wine': '#722f37', 'orange': '#e07b39', 'peach': '#ffcba4',
+    'yellow': '#f1c40f', 'mustard': '#e1a832', 'green': '#27ae60',
+    'olive': '#808000', 'sage': '#bcb88a', 'mint': '#98ff98',
+    'teal': '#008080', 'blue': '#3498db', 'navy': '#001f5b',
+    'royal blue': '#4169e1', 'sky blue': '#87ceeb', 'purple': '#9b59b6',
+    'lavender': '#e6e6fa', 'lilac': '#c8a2c8', 'grey': '#808080',
+    'gray': '#808080', 'charcoal': '#36454f', 'brown': '#795548',
+    'caramel': '#c68642', 'gold': '#c9a84c', 'silver': '#c0c0c0',
+    'copper': '#b87333', 'coral': '#ff7f7f', 'terracotta': '#e2725b',
+    'turquoise': '#40e0d0', 'emerald': '#50c878',
+  };
+  return map[name?.toLowerCase()] || '#d4c5b0';
+}
+
+init();
+</script>
+</body>
+</html>
