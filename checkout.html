@@ -1,155 +1,187 @@
-/* ============================================================
-   DYNAMIC STORE — checkout.js
-   Form validation + order placement + WhatsApp redirect
-   ============================================================ */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout — Dynamic Store</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-body">
 
-document.addEventListener('DOMContentLoaded', () => {
-  initCheckout();
-});
+<a href="#main" class="skip-link">Skip to content</a>
 
-function initCheckout() {
-  renderOrderSummary();
+<div id="pageLoader" class="page-loader" aria-hidden="true">
+  <div class="page-loader__logo">Dynamic<span>.</span></div>
+</div>
 
-  const form = document.getElementById('checkoutForm');
-  if (!form) return;
-
-  // Inline validation on blur (text inputs only)
-  ['name','phone','address','city'].forEach(id => {
-    const el = form.elements[id];
-    if (!el) return;
-    el.addEventListener('blur',  () => validateTextField(el));
-    el.addEventListener('input', () => clearFieldError(el.id, el));
-  });
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!validateForm(form)) return;
-
-    const btn = document.getElementById('placeOrderBtn');
-    btn.classList.add('btn--loading');
-    btn.textContent = '';
-    btn.disabled = true;
-
-    try {
-      const items = cartItems();
-      if (!items.length) { toast('Your bag is empty.', 'error'); return; }
-
-      const data = {
-        name:    form.elements['name'].value.trim(),
-        phone:   form.elements['phone'].value.trim(),
-        address: form.elements['address'].value.trim(),
-        city:    form.elements['city'].value.trim(),
-        payment: form.elements['payment'].value,
-        notes:   form.elements['notes'] ? form.elements['notes'].value.trim() : '',
-        items: items.map(i => ({
-          product_id:   i.productId,
-          product_name: i.name,
-          price:        i.price,
-          quantity:     i.qty,
-          color:        i.color || '',
-          size:         i.size  || '',
-        })),
-      };
-
-      const res = await placeOrder(data);
-
-      localStorage.removeItem('dynamic_store_cart_v2');
-      updateCartBadge();
-
-      if (res.wa_url) {
-        window.location.href = res.wa_url;
-      } else {
-        toast("Order placed! We'll contact you shortly.", 'success');
-        setTimeout(() => window.location.href = 'index.html', 2500);
-      }
-
-    } catch (err) {
-      toast(err.message || 'Could not place order. Please try again.', 'error');
-      btn.classList.remove('btn--loading');
-      btn.disabled = false;
-      btn.textContent = 'Place Order via WhatsApp';
-    }
-  });
-}
-
-function validateTextField(el) {
-  if (!el) return true;
-  const errorEl = document.getElementById(el.id + 'Error');
-  let msg = '';
-
-  if (!el.value.trim()) {
-    msg = 'This field is required.';
-  } else if (el.type === 'tel' && !/^[\d\s\+\-]{10,15}$/.test(el.value)) {
-    msg = 'Enter a valid phone number.';
-  }
-
-  if (msg) {
-    el.classList.add('error');
-    if (errorEl) { errorEl.textContent = msg; errorEl.classList.add('visible'); }
-    return false;
-  }
-  clearFieldError(el.id, el);
-  return true;
-}
-
-function clearFieldError(id, el) {
-  if (el) el.classList.remove('error');
-  const errorEl = document.getElementById(id + 'Error');
-  if (errorEl) errorEl.classList.remove('visible');
-}
-
-function validateForm(form) {
-  let valid = true;
-
-  // Text fields
-  ['name','phone','address','city'].forEach(id => {
-    const el = form.elements[id];
-    if (el && !validateTextField(el)) valid = false;
-  });
-
-  // Payment radio group
-  const paymentVal = form.elements['payment'].value;
-  const paymentErr = document.getElementById('paymentError');
-  if (!paymentVal) {
-    if (paymentErr) { paymentErr.textContent = 'Please select a payment method.'; paymentErr.classList.add('visible'); }
-    valid = false;
-  } else {
-    if (paymentErr) paymentErr.classList.remove('visible');
-  }
-
-  return valid;
-}
-
-function renderOrderSummary() {
-  const items = cartItems();
-  const container = document.getElementById('checkoutItems');
-  const totalEl   = document.getElementById('checkoutTotal');
-
-  if (!container) return;
-
-  if (!items.length) {
-    container.innerHTML = '<p style="font-size:0.85rem;color:var(--gray)">Your bag is empty.</p>';
-    return;
-  }
-
-  container.innerHTML = items.map(i => `
-    <div class="checkout-summary__item">
-      <div class="checkout-summary__img">
-        ${i.image
-          ? `<img src="${i.image}" alt="${i.name}" loading="lazy">`
-          : `<div style="width:100%;height:100%;background:var(--cream-dark)"></div>`
-        }
-      </div>
-      <div>
-        <div class="checkout-summary__item-name">${i.name}</div>
-        <div class="checkout-summary__item-meta">
-          ${[i.color, i.size, 'Qty: ' + i.qty].filter(Boolean).join(' · ')}
-        </div>
-        <div class="checkout-summary__item-price">${fmt(i.price * i.qty)}</div>
-      </div>
+<!-- NAV -->
+<nav class="nav" aria-label="Main navigation">
+  <div class="nav__inner">
+    <button class="nav__hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="navMenu">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="index.html" class="nav__logo">Dynamic<span>.</span></a>
+    <div class="nav__actions">
+      <a href="cart.html" class="nav__btn" aria-label="Shopping bag">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <span class="nav__cart-count" aria-live="polite" style="display:none">0</span>
+      </a>
     </div>
-  `).join('');
+  </div>
+  <div class="nav__menu" id="navMenu" aria-hidden="true">
+    <a href="index.html" class="nav__menu-link">Shop</a>
+    <a href="cart.html"  class="nav__menu-link">Bag</a>
+    <a href="checkout.html" class="nav__menu-link">Checkout</a>
+  </div>
+</nav>
 
-  const total = items.reduce((s, i) => s + i.price * i.qty, 0);
-  if (totalEl) totalEl.textContent = fmt(total);
-}
+<!-- MAIN -->
+<main id="main" class="checkout-page">
+  <h1 class="checkout-page__title">Checkout</h1>
+  <p class="checkout-page__subtitle">Fill in your details — we'll confirm your order via WhatsApp.</p>
+
+  <div class="checkout-layout">
+
+    <!-- FORM -->
+    <section aria-label="Checkout form">
+      <form id="checkoutForm" class="checkout-form" novalidate>
+
+        <!-- Contact -->
+        <div class="form-section">
+          <p class="form-section__title">Contact</p>
+          <div class="form-grid form-grid--2">
+
+            <div class="form-group">
+              <label for="name" class="form-label">Full Name <span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="name" name="name" class="form-input"
+                autocomplete="name" required placeholder="Ayesha Raza">
+              <span class="form-error" id="nameError" role="alert"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="phone" class="form-label">Phone <span class="req" aria-hidden="true">*</span></label>
+              <input type="tel" id="phone" name="phone" class="form-input"
+                autocomplete="tel" required placeholder="03001234567">
+              <span class="form-error" id="phoneError" role="alert"></span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Delivery -->
+        <div class="form-section">
+          <p class="form-section__title">Delivery</p>
+          <div class="form-grid">
+
+            <div class="form-group form-group--full">
+              <label for="address" class="form-label">Street Address <span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="address" name="address" class="form-input"
+                autocomplete="street-address" required placeholder="House no, street, area">
+              <span class="form-error" id="addressError" role="alert"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="city" class="form-label">City <span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="city" name="city" class="form-input"
+                autocomplete="address-level2" required placeholder="Karachi">
+              <span class="form-error" id="cityError" role="alert"></span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Payment -->
+        <div class="form-section">
+          <p class="form-section__title">Payment Method <span class="req" aria-hidden="true">*</span></p>
+          <div class="payment-options" role="group" aria-label="Payment method">
+
+            <div class="payment-opt">
+              <input type="radio" id="pay-jazzcash" name="payment" value="JazzCash" required>
+              <label for="pay-jazzcash" class="payment-opt__label">JazzCash</label>
+            </div>
+            <div class="payment-opt">
+              <input type="radio" id="pay-easypaisa" name="payment" value="Easypaisa">
+              <label for="pay-easypaisa" class="payment-opt__label">Easypaisa</label>
+            </div>
+            <div class="payment-opt">
+              <input type="radio" id="pay-bank" name="payment" value="Bank Transfer">
+              <label for="pay-bank" class="payment-opt__label">Bank Transfer</label>
+            </div>
+            <div class="payment-opt">
+              <input type="radio" id="pay-sadapay" name="payment" value="SadaPay">
+              <label for="pay-sadapay" class="payment-opt__label">SadaPay</label>
+            </div>
+            <div class="payment-opt">
+              <input type="radio" id="pay-nayapay" name="payment" value="NayaPay">
+              <label for="pay-nayapay" class="payment-opt__label">NayaPay</label>
+            </div>
+            <div class="payment-opt">
+              <input type="radio" id="pay-cod" name="payment" value="Cash on Delivery">
+              <label for="pay-cod" class="payment-opt__label">Cash on Delivery</label>
+            </div>
+
+          </div>
+          <span class="form-error" id="paymentError" role="alert" style="margin-top:8px"></span>
+        </div>
+
+        <!-- Notes -->
+        <div class="form-section">
+          <p class="form-section__title">Order Notes <span style="font-weight:300;text-transform:none;letter-spacing:0;font-size:0.8rem;color:var(--gray-light)">(optional)</span></p>
+          <div class="form-grid">
+            <div class="form-group form-group--full">
+              <label for="notes" class="form-label">Special instructions</label>
+              <textarea id="notes" name="notes" class="form-textarea" rows="3"
+                placeholder="Any notes for your order…"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTA -->
+        <button type="submit" id="placeOrderBtn" class="btn btn--primary btn--full btn--lg">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.13 1.535 5.874L.057 23.52a.75.75 0 0 0 .977.904l5.914-1.554A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.952 0-3.775-.546-5.318-1.49l-.38-.232-3.953 1.037.997-3.77-.247-.392A9.96 9.96 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+          </svg>
+          Place Order via WhatsApp
+        </button>
+
+        <p style="font-size:0.72rem;color:var(--gray);text-align:center;line-height:1.7;margin-top:-8px">
+          You'll be redirected to WhatsApp to confirm payment with the merchant.
+        </p>
+
+      </form>
+    </section>
+
+    <!-- ORDER SUMMARY -->
+    <aside class="checkout-summary" aria-label="Order summary">
+      <h2 class="checkout-summary__title">Your Order</h2>
+      <div id="checkoutItems" class="checkout-summary__items"></div>
+      <div class="checkout-summary__sep"></div>
+      <div class="checkout-summary__total-row">
+        <span class="checkout-summary__total-label">Total</span>
+        <span class="checkout-summary__total-val" id="checkoutTotal">Rs. 0</span>
+      </div>
+    </aside>
+
+  </div>
+</main>
+
+<!-- Footer -->
+<footer class="footer" aria-label="Site footer">
+  <div class="footer__inner">
+    <div class="footer__bottom">
+      <span>© 2025 Dynamic Store</span>
+      <a href="cart.html" class="footer__link" style="color:rgba(255,255,255,0.5)">← Back to Bag</a>
+    </div>
+  </div>
+</footer>
+
+<div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+<script src="js/data.js"></script>
+<script src="js/checkout.js"></script>
+</body>
+</html>
