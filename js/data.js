@@ -37,10 +37,11 @@ function calcPrice(product, color, size) {
 }
 
 /* ── API ─────────────────────────────────────────────────────── */
+
 async function apiFetch(path, options = {}) {
   const res = await fetch(`${CONFIG.API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
+    headers: { 'Content-Type': 'application/json', ...options.headers },
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Network error' }));
